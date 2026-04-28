@@ -224,7 +224,7 @@ INSERT INTO settings (setting_key, setting_value, description) VALUES
 ('streak_bonus_7days', '50', 'Bonus points for 7-day streak'),
 ('streak_bonus_30days', '200', 'Bonus points for 30-day streak');
 
-INSERT INTO departments (name, is_active) VALUES
-('Computer Science', 1),
-('Engineering', 1),
-('Business', 1);
+INSERT INTO departments (name, code) VALUES
+('Computer Science', 'CS'),
+('Engineering', 'ENG'),
+('Business', 'BUS');
