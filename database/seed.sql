@@ -1,5 +1,4 @@
 -- Green Rewards System - Seed Data
-USE green_rewards;
 
 INSERT IGNORE INTO departments (name, code) VALUES
 ('Computer Science', 'CS'),

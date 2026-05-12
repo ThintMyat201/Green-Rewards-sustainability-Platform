@@ -65,6 +65,24 @@ document.addEventListener('DOMContentLoaded', function() {
     fileInputs.forEach(input => {
         input.addEventListener('change', function(e) {
             const file = e.target.files[0];
+            const profilePreview = document.getElementById('profile-picture-preview');
+
+            if (input.id === 'profile_picture' && profilePreview) {
+                if (!file) {
+                    profilePreview.removeAttribute('src');
+                    profilePreview.hidden = true;
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function(loadEvent) {
+                    profilePreview.src = loadEvent.target.result;
+                    profilePreview.hidden = false;
+                };
+                reader.readAsDataURL(file);
+                return;
+            }
+
             if (file) {
                 const reader = new FileReader();
                 reader.onload = function(e) {

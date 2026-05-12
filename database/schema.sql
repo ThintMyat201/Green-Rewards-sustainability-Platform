@@ -1,10 +1,6 @@
 -- Green Rewards System Database Schema
 -- MySQL/MariaDB
 
-DROP DATABASE IF EXISTS green_rewards;
-CREATE DATABASE green_rewards CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE green_rewards;
-
 -- 1. Users Table
 CREATE TABLE users (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -13,12 +9,17 @@ CREATE TABLE users (
     password_hash VARCHAR(255) NOT NULL,
     role ENUM('admin', 'moderator', 'student', 'staff') NOT NULL DEFAULT 'student',
     department VARCHAR(100) DEFAULT NULL,
+    student_id VARCHAR(50) DEFAULT NULL UNIQUE,
+    phone VARCHAR(20) DEFAULT NULL,
+    address TEXT DEFAULT NULL,
+    profile_picture_path VARCHAR(255) DEFAULT NULL,
     points_total INT DEFAULT 0,
     streak_count INT DEFAULT 0,
     last_activity_date DATE DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_role (role),
     INDEX idx_department (department),
+    INDEX idx_student_id (student_id),
     INDEX idx_points (points_total DESC)
 ) ENGINE=InnoDB;
 
