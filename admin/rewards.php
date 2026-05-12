@@ -21,18 +21,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_reward'])) {
     $type = clean($_POST['type'] ?? 'merchandise');
     $pointsCost = (int) ($_POST['points_cost'] ?? 0);
     $stockQty = (int) ($_POST['stock_qty'] ?? 0);
+    $imagePath = null;
     
     if (empty($name) || $pointsCost < 1 || $stockQty < 0) {
         $error = 'Please fill in all fields correctly';
     } else {
+        if (!empty($_FILES['image']['name'])) {
+            $uploadResult = uploadFile($_FILES['image'], 'reward');
+            if (!$uploadResult['success']) {
+                $error = $uploadResult['error'];
+            } else {
+                $imagePath = $uploadResult['filename'];
+            }
+        }
+
+        if (!$error) {
         $stmt = $pdo->prepare(
-            "INSERT INTO rewards (name, description, type, points_cost, stock_qty) 
-             VALUES (?, ?, ?, ?, ?)"
+            "INSERT INTO rewards (name, description, type, points_cost, stock_qty, image_path) 
+             VALUES (?, ?, ?, ?, ?, ?)"
         );
-        if ($stmt->execute([$name, $description, $type, $pointsCost, $stockQty])) {
-            $success = 'Reward created successfully!';
-        } else {
-            $error = 'Failed to create reward';
+            if ($stmt->execute([$name, $description, $type, $pointsCost, $stockQty, $imagePath])) {
+                $success = 'Reward created successfully!';
+            } else {
+                $error = 'Failed to create reward';
+            }
         }
     }
 }
@@ -52,16 +64,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_reward'])) {
     } elseif (!in_array($updatedType, $rewardTypeOptions, true)) {
         $error = 'Invalid reward type selected';
     } else {
-        $stmt = $pdo->prepare(
-            "UPDATE rewards
-             SET name = ?, type = ?, points_cost = ?, stock_qty = ?
-             WHERE id = ?"
-        );
+        $stmt = $pdo->prepare("SELECT image_path FROM rewards WHERE id = ?");
+        $stmt->execute([$rewardId]);
+        $currentReward = $stmt->fetch();
 
-        if ($stmt->execute([$updatedName, $updatedType, $updatedPointsCost, $updatedStockQty, $rewardId])) {
-            $success = 'Reward updated successfully!';
+        if (!$currentReward) {
+            $error = 'Reward not found';
         } else {
-            $error = 'Failed to update reward';
+            $updatedImagePath = $currentReward['image_path'];
+
+            if (!empty($_FILES['image']['name'])) {
+                $uploadResult = uploadFile($_FILES['image'], 'reward');
+                if (!$uploadResult['success']) {
+                    $error = $uploadResult['error'];
+                } else {
+                    $updatedImagePath = $uploadResult['filename'];
+
+                    if (!empty($currentReward['image_path'])) {
+                        $oldImageFile = __DIR__ . '/../' . ltrim($currentReward['image_path'], '/');
+                        if (file_exists($oldImageFile)) {
+                            unlink($oldImageFile);
+                        }
+                    }
+                }
+            }
+
+            if (!$error) {
+                $stmt = $pdo->prepare(
+                    "UPDATE rewards
+                     SET name = ?, type = ?, points_cost = ?, stock_qty = ?, image_path = ?
+                     WHERE id = ?"
+                );
+
+                if ($stmt->execute([$updatedName, $updatedType, $updatedPointsCost, $updatedStockQty, $updatedImagePath, $rewardId])) {
+                    $success = 'Reward updated successfully!';
+                } else {
+                    $error = 'Failed to update reward';
+                }
+            }
         }
     }
 }
@@ -207,7 +247,7 @@ include __DIR__ . '/../includes/header.php';
 
 <div class="card mb-3">
     <h2 class="card-header"><i class="fa-solid fa-plus"></i> Create New Reward</h2>
-    <form method="POST">
+    <form method="POST" enctype="multipart/form-data">
         <div class="form-group">
             <label>Reward Name *</label>
             <input type="text" name="name" required placeholder="e.g., Campus Cafeteria Voucher">
@@ -237,6 +277,15 @@ include __DIR__ . '/../includes/header.php';
                 <label>Stock Quantity *</label>
                 <input type="number" name="stock_qty" min="0" required placeholder="50">
             </div>
+        </div>
+
+        <div class="form-group">
+            <label>Reward Image</label>
+            <input type="file" id="reward_image" name="image" accept="image/jpeg,image/png,image/gif,image/webp">
+            <div class="reward-upload-preview-wrap">
+                <img id="reward-image-preview" class="reward-upload-preview" alt="Selected reward image preview" hidden>
+            </div>
+            <small class="text-muted reward-upload-note">Optional. Supported formats: JPG, PNG, GIF, WebP. Max size: 5MB. Recommended size: 400x400px.</small>
         </div>
         
         <button type="submit" name="create_reward" class="btn btn-primary">Create Reward</button>
@@ -311,7 +360,7 @@ include __DIR__ . '/../includes/header.php';
                                 <div id="modal-<?php echo $reward['id']; ?>" class="admin-modal-overlay" style="display:none;">
                                     <div class="admin-modal-content admin-modal-content-sm">
                                         <h3>Edit Reward: <?php echo clean($reward['name']); ?></h3>
-                                        <form method="POST" style="margin-top: 1rem;">
+                                        <form method="POST" enctype="multipart/form-data" style="margin-top: 1rem;">
                                             <input type="hidden" name="reward_id" value="<?php echo $reward['id']; ?>">
                                             <div class="form-group">
                                                 <label>Reward Name</label>
@@ -332,6 +381,34 @@ include __DIR__ . '/../includes/header.php';
                                             <div class="form-group">
                                                 <label>Stock Quantity</label>
                                                 <input type="number" name="stock_qty" value="<?php echo (int) $reward['stock_qty']; ?>" min="0" required>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Reward Image</label>
+                                                <input
+                                                    type="file"
+                                                    id="reward_edit_image_<?php echo $reward['id']; ?>"
+                                                    name="image"
+                                                    accept="image/jpeg,image/png,image/gif,image/webp"
+                                                    data-preview-target="reward-edit-preview-<?php echo $reward['id']; ?>"
+                                                >
+                                                <div class="reward-upload-preview-wrap">
+                                                    <?php if (!empty($reward['image_path'])): ?>
+                                                        <img
+                                                            id="reward-edit-preview-<?php echo $reward['id']; ?>"
+                                                            src="<?php echo appUrl(clean($reward['image_path'])); ?>"
+                                                            alt="<?php echo clean($reward['name']); ?> preview"
+                                                            class="reward-upload-preview"
+                                                        >
+                                                    <?php else: ?>
+                                                        <img
+                                                            id="reward-edit-preview-<?php echo $reward['id']; ?>"
+                                                            class="reward-upload-preview"
+                                                            alt="Selected reward image preview"
+                                                            hidden
+                                                        >
+                                                    <?php endif; ?>
+                                                </div>
+                                                <small class="text-muted reward-upload-note">Leave blank to keep the current image. Supported formats: JPG, PNG, GIF, WebP. Max size: 5MB. Recommended size: 400x400px.</small>
                                             </div>
                                             <button type="submit" name="update_reward" class="btn btn-success btn-block">Save Changes</button>
                                             <button type="button" onclick="document.getElementById('modal-<?php echo $reward['id']; ?>').style.display='none'" 

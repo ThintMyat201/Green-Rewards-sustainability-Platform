@@ -94,6 +94,7 @@ svg {
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    flex: 0 0 auto;
 }
 
 .nav-guest-area {
@@ -109,6 +110,10 @@ svg {
     border-radius: 999px;
     border: 1px solid var(--border);
     background: var(--white);
+    width: 320px;
+    max-width: 320px;
+    min-width: 0;
+    overflow: hidden;
 }
 
 .profile-chip:hover {
@@ -207,6 +212,11 @@ svg {
 .user-name {
     color: var(--dark);
     font-weight: 600;
+    display: block;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .profile-chip .points-badge,
@@ -216,6 +226,16 @@ svg {
 .profile-chip .user-name:hover,
 .profile-chip .user-name:visited {
     text-decoration: none;
+}
+
+.profile-chip .points-badge,
+.profile-chip .role-badge {
+    flex-shrink: 0;
+}
+
+.profile-chip .user-name {
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 .profile-chip a,
@@ -534,6 +554,56 @@ svg {
     min-height: 2.5rem;
 }
 
+.reward-image-wrap {
+    margin-bottom: 1rem;
+}
+
+.reward-image {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    border-radius: 12px;
+    display: block;
+    background: var(--light);
+}
+
+.reward-image-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--gray);
+    font-size: 2rem;
+    border: 1px dashed var(--border);
+}
+
+.reward-upload-preview-wrap {
+    display: flex;
+    justify-content: center;
+    margin-top: 1rem;
+}
+
+.reward-upload-preview {
+    width: 260px;
+    height: 260px;
+    max-width: 100%;
+    object-fit: cover;
+    border-radius: 18px;
+    border: 1px solid var(--border);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+    background: #f8fafc;
+}
+
+.reward-upload-note {
+    display: block;
+    text-align: center;
+    margin-top: 0.85rem;
+}
+
+.admin-modal-content .reward-upload-preview {
+    width: 220px;
+    height: 220px;
+}
+
 .card-content .reward-info {
     margin-top: auto;
     padding-top: 1rem;
@@ -692,6 +762,21 @@ svg {
 .form-group textarea:focus {
     outline: none;
     border-color: var(--primary);
+}
+
+.form-select {
+    cursor: pointer;
+    appearance: auto;
+    background-color: white;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 12px;
+    padding-right: 2.5rem;
+}
+
+.form-select option {
+    padding: 0.5rem;
 }
 
 /* Tables */
@@ -1344,8 +1429,8 @@ svg {
 }
 
 .profile-avatar {
-    width: 56px;
-    height: 56px;
+    width: 96px;
+    height: 96px;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -1355,6 +1440,54 @@ svg {
     color: white;
     background: linear-gradient(135deg, var(--primary), var(--primary-dark));
     flex-shrink: 0;
+}
+
+.profile-avatar-container {
+    position: relative;
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.profile-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+.profile-picture-preview-wrap {
+    display: flex;
+    justify-content: center;
+    margin-top: 1rem;
+}
+
+.profile-picture-preview {
+    width: 260px;
+    height: 260px;
+    max-width: 100%;
+    object-fit: cover;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+    background: #f8fafc;
+}
+
+.profile-picture-note {
+    display: block;
+    text-align: center;
+    margin-top: 0.85rem;
+}
+
+.profile-student-id {
+    color: var(--gray);
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 0.2rem;
 }
 
 .profile-top-text {
@@ -1402,6 +1535,30 @@ svg {
 .profile-info-list p:last-child {
     border-bottom: 0;
     padding-bottom: 0;
+}
+
+.account-info {
+    background: #f9fafb;
+    padding: 1.25rem;
+    border-radius: 6px;
+    border-left: 4px solid var(--primary);
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+}
+
+.info-label {
+    font-weight: 600;
+    color: var(--dark);
+}
+
+.info-value {
+    color: var(--gray);
+    font-style: italic;
 }
 
 .profile-actions-mobile .btn {
@@ -1503,6 +1660,7 @@ svg {
 
     .profile-chip {
         width: 100%;
+        max-width: none;
         justify-content: space-between;
         border-radius: 10px;
     }
@@ -1516,6 +1674,7 @@ svg {
         flex: 1;
         text-align: center;
         min-width: 0;
+        max-width: none;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;

@@ -65,6 +65,59 @@ document.addEventListener('DOMContentLoaded', function() {
     fileInputs.forEach(input => {
         input.addEventListener('change', function(e) {
             const file = e.target.files[0];
+            const profilePreview = document.getElementById('profile-picture-preview');
+            const rewardPreview = document.getElementById('reward-image-preview');
+            const previewTargetId = input.dataset.previewTarget;
+            const previewTarget = previewTargetId ? document.getElementById(previewTargetId) : null;
+
+            if (previewTarget) {
+                if (!file) {
+                    previewTarget.removeAttribute('src');
+                    previewTarget.hidden = true;
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function(loadEvent) {
+                    previewTarget.src = loadEvent.target.result;
+                    previewTarget.hidden = false;
+                };
+                reader.readAsDataURL(file);
+                return;
+            }
+
+            if (input.id === 'profile_picture' && profilePreview) {
+                if (!file) {
+                    profilePreview.removeAttribute('src');
+                    profilePreview.hidden = true;
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function(loadEvent) {
+                    profilePreview.src = loadEvent.target.result;
+                    profilePreview.hidden = false;
+                };
+                reader.readAsDataURL(file);
+                return;
+            }
+
+            if (input.id === 'reward_image' && rewardPreview) {
+                if (!file) {
+                    rewardPreview.removeAttribute('src');
+                    rewardPreview.hidden = true;
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function(loadEvent) {
+                    rewardPreview.src = loadEvent.target.result;
+                    rewardPreview.hidden = false;
+                };
+                reader.readAsDataURL(file);
+                return;
+            }
+
             if (file) {
                 const reader = new FileReader();
                 reader.onload = function(e) {

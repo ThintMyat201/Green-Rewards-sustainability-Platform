@@ -16,8 +16,11 @@ if (!$user) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $profileAction = clean($_POST['profile_action'] ?? '');
 
-    if ($profileAction === 'update_name') {
+    if ($profileAction === 'update_profile') {
         $newName = clean($_POST['name'] ?? '');
+        $studentId = clean($_POST['student_id'] ?? '');
+        $phone = clean($_POST['phone'] ?? '');
+        $address = clean($_POST['address'] ?? '');
 
         if (strlen($newName) < 2) {
             redirect('/profile.php', 'Name must be at least 2 characters long', 'danger');
@@ -27,11 +30,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirect('/profile.php', 'Name must be less than 100 characters', 'danger');
         }
 
-        $stmt = $pdo->prepare("UPDATE users SET name = ? WHERE id = ?");
-        $stmt->execute([$newName, $user['id']]);
+        if ($phone && !preg_match('/^[0-9\-\+\s\(\)]+$/', $phone)) {
+            redirect('/profile.php', 'Invalid phone number format', 'danger');
+        }
+
+        $stmt = $pdo->prepare("UPDATE users SET name = ?, student_id = ?, phone = ?, address = ? WHERE id = ?");
+        $stmt->execute([$newName, $studentId, $phone, $address, $user['id']]);
 
         $_SESSION['name'] = $newName;
         redirect('/profile.php', 'Profile updated successfully', 'success');
+    }
+
+    if ($profileAction === 'upload_picture') {
+        if (!isset($_FILES['profile_picture']) || $_FILES['profile_picture']['error'] !== UPLOAD_ERR_OK) {
+            redirect('/profile.php', 'Please select a valid image file', 'danger');
+        }
+
+        $file = $_FILES['profile_picture'];
+        $allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        $maxSize = 5 * 1024 * 1024; // 5MB
+
+        if (!in_array($file['type'], $allowed)) {
+            redirect('/profile.php', 'Only JPEG, PNG, GIF, and WebP images are allowed', 'danger');
+        }
+
+        if ($file['size'] > $maxSize) {
+            redirect('/profile.php', 'File size must be less than 5MB', 'danger');
+        }
+
+        // Create uploads/profiles directory if it doesn't exist
+        $uploadDir = __DIR__ . '/uploads/profiles';
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+
+        // Delete old profile picture if exists
+        if ($user['profile_picture_path']) {
+            $oldFile = __DIR__ . $user['profile_picture_path'];
+            if (file_exists($oldFile)) {
+                unlink($oldFile);
+            }
+        }
+
+        // Save new picture with user ID in filename
+        $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
+        $newFilename = 'profile_' . $user['id'] . '_' . time() . '.' . $ext;
+        $uploadPath = $uploadDir . '/' . $newFilename;
+        $dbPath = '/uploads/profiles/' . $newFilename;
+
+        if (move_uploaded_file($file['tmp_name'], $uploadPath)) {
+            $stmt = $pdo->prepare("UPDATE users SET profile_picture_path = ? WHERE id = ?");
+            $stmt->execute([$dbPath, $user['id']]);
+            redirect('/profile.php', 'Profile picture uploaded successfully', 'success');
+        } else {
+            redirect('/profile.php', 'Failed to upload picture', 'danger');
+        }
     }
 
     if ($profileAction === 'change_password') {
@@ -91,23 +144,64 @@ include __DIR__ . '/includes/header.php';
 <section class="profile-page">
     <div class="card profile-top-card">
         <div class="profile-top-main">
-            <div class="profile-avatar" aria-hidden="true">
-                <?php echo strtoupper(substr(clean($user['name']), 0, 1)); ?>
+            <div class="profile-avatar-container">
+                <?php if ($user['profile_picture_path']): ?>
+                    <img src="<?php echo appUrl(clean($user['profile_picture_path'])); ?>" alt="Profile Picture" class="profile-avatar-img">
+                <?php else: ?>
+                    <div class="profile-avatar" aria-hidden="true">
+                        <?php echo strtoupper(substr(clean($user['name']), 0, 1)); ?>
+                    </div>
+                <?php endif; ?>
             </div>
             <div class="profile-top-text">
                 <h1 class="profile-title"><?php echo clean($user['name']); ?></h1>
                 <p class="profile-subtitle"><?php echo clean($user['email']); ?></p>
+                <?php if ($user['student_id'] || $user['department']): ?>
+                    <p class="profile-student-id">
+                        <?php if ($user['student_id']): ?>
+                            <span>ID: <?php echo clean($user['student_id']); ?></span>
+                        <?php endif; ?>
+                        <?php if ($user['student_id'] && $user['department']): ?>
+                            <span class="profile-meta-separator">|</span>
+                        <?php endif; ?>
+                        <?php if ($user['department']): ?>
+                            <span>Department: <?php echo clean($user['department']); ?></span>
+                        <?php endif; ?>
+                    </p>
+                <?php endif; ?>
             </div>
         </div>
         <span class="role-pill"><?php echo clean(ucfirst($user['role'])); ?></span>
     </div>
 
     <div class="card mb-3">
-        <h2 class="card-header">Edit Name</h2>
-        <form method="POST" class="profile-form">
-            <input type="hidden" name="profile_action" value="update_name">
+        <h2 class="card-header">Upload Profile Picture</h2>
+        <form method="POST" enctype="multipart/form-data" class="profile-form">
+            <input type="hidden" name="profile_action" value="upload_picture">
             <div class="form-group">
-                <label for="name">Display Name</label>
+                <label for="profile_picture">Choose Picture (JPEG, PNG, GIF, or WebP)</label>
+                <input
+                    type="file"
+                    id="profile_picture"
+                    name="profile_picture"
+                    required
+                    accept="image/jpeg,image/png,image/gif,image/webp"
+                >
+                <div class="profile-picture-preview-wrap">
+                    <img id="profile-picture-preview" class="profile-picture-preview" alt="Selected profile picture preview" hidden>
+                </div>
+                <small class="text-muted profile-picture-note">Max file size: 5MB. Recommended size: 400x400px</small>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Upload Picture</button>
+        </form>
+    </div>
+
+    <div class="card mb-3">
+        <h2 class="card-header">Edit Profile</h2>
+        <form method="POST" class="profile-form">
+            <input type="hidden" name="profile_action" value="update_profile">
+            <div class="form-group">
+                <label for="name">Display Name <span class="text-danger">*</span></label>
                 <input
                     type="text"
                     id="name"
@@ -120,6 +214,42 @@ include __DIR__ . '/includes/header.php';
                 >
                 <small class="text-muted">This name is shown across your profile and leaderboard.</small>
             </div>
+
+            <div class="form-group">
+                <label for="student_id">Student ID</label>
+                <input
+                    type="text"
+                    id="student_id"
+                    name="student_id"
+                    maxlength="50"
+                    value="<?php echo clean($user['student_id'] ?? ''); ?>"
+                    placeholder="Enter your student ID"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="phone">Phone Number</label>
+                <input
+                    type="tel"
+                    id="phone"
+                    name="phone"
+                    maxlength="20"
+                    value="<?php echo clean($user['phone'] ?? ''); ?>"
+                    placeholder="Enter your phone number"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="address">Address</label>
+                <textarea
+                    id="address"
+                    name="address"
+                    maxlength="500"
+                    placeholder="Enter your address"
+                    rows="3"
+                ><?php echo clean($user['address'] ?? ''); ?></textarea>
+            </div>
+
             <button type="submit" class="btn btn-primary btn-block">Save Changes</button>
         </form>
     </div>
