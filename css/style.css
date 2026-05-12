@@ -576,6 +576,34 @@ svg {
     border: 1px dashed var(--border);
 }
 
+.reward-upload-preview-wrap {
+    display: flex;
+    justify-content: center;
+    margin-top: 1rem;
+}
+
+.reward-upload-preview {
+    width: 260px;
+    height: 260px;
+    max-width: 100%;
+    object-fit: cover;
+    border-radius: 18px;
+    border: 1px solid var(--border);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+    background: #f8fafc;
+}
+
+.reward-upload-note {
+    display: block;
+    text-align: center;
+    margin-top: 0.85rem;
+}
+
+.admin-modal-content .reward-upload-preview {
+    width: 220px;
+    height: 220px;
+}
+
 .card-content .reward-info {
     margin-top: auto;
     padding-top: 1rem;
