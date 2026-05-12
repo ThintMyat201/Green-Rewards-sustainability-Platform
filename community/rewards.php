@@ -116,6 +116,19 @@ include __DIR__ . '/../includes/header.php';
         <?php $canAfford = $user['points_total'] >= $reward['points_cost']; ?>
         <div class="card">
             <div class="card-content">
+                <div class="reward-image-wrap">
+                    <?php if (!empty($reward['image_path'])): ?>
+                        <img
+                            src="<?php echo appUrl(clean($reward['image_path'])); ?>"
+                            alt="<?php echo clean($reward['name']); ?>"
+                            class="reward-image"
+                        >
+                    <?php else: ?>
+                        <div class="reward-image reward-image-placeholder">
+                            <i class="fa-solid fa-gift"></i>
+                        </div>
+                    <?php endif; ?>
+                </div>
                 <span class="badge badge-<?php echo $reward['type'] === 'voucher' ? 'success' : ($reward['type'] === 'merchandise' ? 'warning' : 'info'); ?>">
                     <?php echo ucfirst($reward['type']); ?>
                 </span>

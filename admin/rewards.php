@@ -21,18 +21,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_reward'])) {
     $type = clean($_POST['type'] ?? 'merchandise');
     $pointsCost = (int) ($_POST['points_cost'] ?? 0);
     $stockQty = (int) ($_POST['stock_qty'] ?? 0);
+    $imagePath = null;
     
     if (empty($name) || $pointsCost < 1 || $stockQty < 0) {
         $error = 'Please fill in all fields correctly';
     } else {
+        if (!empty($_FILES['image']['name'])) {
+            $uploadResult = uploadFile($_FILES['image'], 'reward');
+            if (!$uploadResult['success']) {
+                $error = $uploadResult['error'];
+            } else {
+                $imagePath = $uploadResult['filename'];
+            }
+        }
+
+        if (!$error) {
         $stmt = $pdo->prepare(
-            "INSERT INTO rewards (name, description, type, points_cost, stock_qty) 
-             VALUES (?, ?, ?, ?, ?)"
+            "INSERT INTO rewards (name, description, type, points_cost, stock_qty, image_path) 
+             VALUES (?, ?, ?, ?, ?, ?)"
         );
-        if ($stmt->execute([$name, $description, $type, $pointsCost, $stockQty])) {
-            $success = 'Reward created successfully!';
-        } else {
-            $error = 'Failed to create reward';
+            if ($stmt->execute([$name, $description, $type, $pointsCost, $stockQty, $imagePath])) {
+                $success = 'Reward created successfully!';
+            } else {
+                $error = 'Failed to create reward';
+            }
         }
     }
 }
@@ -207,7 +219,7 @@ include __DIR__ . '/../includes/header.php';
 
 <div class="card mb-3">
     <h2 class="card-header"><i class="fa-solid fa-plus"></i> Create New Reward</h2>
-    <form method="POST">
+    <form method="POST" enctype="multipart/form-data">
         <div class="form-group">
             <label>Reward Name *</label>
             <input type="text" name="name" required placeholder="e.g., Campus Cafeteria Voucher">
@@ -237,6 +249,12 @@ include __DIR__ . '/../includes/header.php';
                 <label>Stock Quantity *</label>
                 <input type="number" name="stock_qty" min="0" required placeholder="50">
             </div>
+        </div>
+
+        <div class="form-group">
+            <label>Reward Image</label>
+            <input type="file" name="image" accept="image/jpeg,image/png,image/gif,image/webp">
+            <small class="text-muted">Optional. Supported formats: JPG, PNG, GIF, WebP. Max size: 5MB.</small>
         </div>
         
         <button type="submit" name="create_reward" class="btn btn-primary">Create Reward</button>
