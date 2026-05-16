@@ -72,6 +72,16 @@ agenthub/agents/youtube/db
 **/*.tar.gz
 **/*.tar
 **/*.tgz
+**/*.png
+**/*.jpg
+**/*.jpeg
+**/*.gif
+**/*.webp
+**/*.svg
+**/*.ico
+**/*.bmp
+**/*.avif
+**/*.heic
 *.pack
 *.deb
 *.dylib
