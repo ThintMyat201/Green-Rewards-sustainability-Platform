@@ -72,12 +72,19 @@ $showPointsBadge = $currentUser && roleEarnsPoints($currentUser['role'] ?? '');
                     </ul>
 
                     <div class="nav-user-area">
-                        <div class="profile-chip">
-                            <?php if ($showPointsBadge): ?>
-                                <a href="<?php echo appUrl('/community/points.php'); ?>" class="points-badge" style="text-decoration: none;"><i class="fa-solid fa-star"></i> <?php echo number_format($currentUser['points_total']); ?> pts</a>
-                            <?php endif; ?>
-                            <a href="<?php echo appUrl('/profile.php'); ?>" class="user-name" style="text-decoration: none;"><?php echo clean($currentUser['name']); ?></a>
-                            <span class="role-badge"><?php echo ucfirst($currentUser['role']); ?></span>
+                        <?php if ($showPointsBadge): ?>
+                            <div class="points-chip">
+                                <a href="<?php echo appUrl('/community/points.php'); ?>" class="points-badge"><i class="fa-solid fa-star"></i> <?php echo number_format($currentUser['points_total']); ?> pts</a>
+                            </div>
+                        <?php endif; ?>
+                        <a href="<?php echo appUrl('/profile.php'); ?>" class="profile-summary" aria-label="Go to profile">
+                            <span class="user-name"><?php echo clean($currentUser['name'] ?? 'Profile'); ?></span>
+                            <span class="role-badge"><?php echo ucfirst(clean($currentUser['role'] ?? 'user')); ?></span>
+                        </a>
+                        <div class="profile-action">
+                            <a href="<?php echo appUrl('/profile.php'); ?>" class="profile-icon-link" aria-label="Go to profile" title="Profile">
+                                <i class="fa-solid fa-circle-user" aria-hidden="true"></i>
+                            </a>
                         </div>
                     </div>
                 <?php else: ?>

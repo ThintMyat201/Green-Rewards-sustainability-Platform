@@ -101,23 +101,63 @@ svg {
     margin-left: 0.5rem;
 }
 
-.profile-chip {
+.profile-action {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
+    flex: 0 0 auto;
+}
+
+.profile-summary {
+    display: none;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.45rem 0.7rem;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    background: var(--white);
     text-decoration: none;
-    padding: 0.45rem 0.6rem;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.profile-summary:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.profile-summary .user-name {
+    max-width: 140px;
+}
+
+.profile-summary .role-badge {
+    flex-shrink: 0;
+}
+
+.profile-icon-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
     border-radius: 999px;
     border: 1px solid var(--border);
     background: var(--white);
-    width: 320px;
-    max-width: 320px;
-    min-width: 0;
-    overflow: hidden;
+    color: var(--dark);
+    font-size: 1.35rem;
+    text-decoration: none;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    flex: 0 0 auto;
 }
 
-.profile-chip:hover {
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+.profile-icon-link:hover {
+    color: var(--primary);
+    border-color: rgba(16, 185, 129, 0.28);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    transform: translateY(-1px);
+}
+
+.profile-icon-link:focus-visible {
+    outline: 3px solid rgba(16, 185, 129, 0.22);
+    outline-offset: 2px;
 }
 
 .nav-toggle {
@@ -219,37 +259,14 @@ svg {
     white-space: nowrap;
 }
 
-.profile-chip .points-badge,
-.profile-chip .points-badge:hover,
-.profile-chip .points-badge:visited,
-.profile-chip .user-name,
-.profile-chip .user-name:hover,
-.profile-chip .user-name:visited {
+.points-badge,
+.points-badge:hover,
+.points-badge:visited {
     text-decoration: none;
 }
 
-.profile-chip .points-badge,
-.profile-chip .role-badge {
+.points-badge {
     flex-shrink: 0;
-}
-
-.profile-chip .user-name {
-    flex: 1 1 auto;
-    min-width: 0;
-}
-
-.profile-chip a,
-.profile-chip a:hover,
-.profile-chip a:focus,
-.profile-chip a:active,
-.profile-chip a:visited {
-    text-decoration: none !important;
-}
-
-.user-info {
-    display: flex;
-    gap: 0.8rem;
-    align-items: center;
 }
 
 .btn-logout {
@@ -1654,30 +1671,35 @@ svg {
 
     .nav-user-area {
         width: 100%;
-        flex-direction: column;
-        align-items: stretch;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        flex-wrap: wrap;
     }
 
-    .profile-chip {
-        width: 100%;
-        max-width: none;
-        justify-content: space-between;
-        border-radius: 10px;
+    .profile-summary {
+        display: inline-flex;
+        width: auto;
+        order: 1;
+    }
+
+    .profile-action {
+        margin-left: auto;
+        order: 2;
+    }
+
+    .profile-icon-link {
+        display: none;
     }
 
     .btn-logout {
         width: 100%;
         text-align: center;
     }
-
-    .user-name {
-        flex: 1;
-        text-align: center;
-        min-width: 0;
-        max-width: none;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+    
+    .profile-summary .user-name {
+        max-width: 120px;
     }
     
     .card-grid {
