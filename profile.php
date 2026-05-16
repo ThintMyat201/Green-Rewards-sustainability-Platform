@@ -47,11 +47,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $file = $_FILES['profile_picture'];
-        $allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        $allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif'];
         $maxSize = 5 * 1024 * 1024; // 5MB
+        $fileMime = $file['type'] ?? '';
 
-        if (!in_array($file['type'], $allowed)) {
-            redirect('/profile.php', 'Only JPEG, PNG, GIF, and WebP images are allowed', 'danger');
+        if (function_exists('finfo_open')) {
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            if ($finfo) {
+                $detectedMime = finfo_file($finfo, $file['tmp_name']);
+                finfo_close($finfo);
+
+                if (is_string($detectedMime) && $detectedMime !== '') {
+                    $fileMime = $detectedMime;
+                }
+            }
+        }
+
+        if (!in_array($fileMime, $allowed, true)) {
+            redirect('/profile.php', 'Only JPEG, PNG, GIF, WebP, HEIC, and HEIF images are allowed', 'danger');
         }
 
         if ($file['size'] > $maxSize) {
@@ -64,23 +77,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             mkdir($uploadDir, 0755, true);
         }
 
-        // Delete old profile picture if exists
-        if ($user['profile_picture_path']) {
-            $oldFile = __DIR__ . $user['profile_picture_path'];
-            if (file_exists($oldFile)) {
-                unlink($oldFile);
-            }
-        }
-
-        // Save new picture with user ID in filename
-        $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
-        $newFilename = 'profile_' . $user['id'] . '_' . time() . '.' . $ext;
+        // Normalize all uploads to JPEG so iPhone HEIC files work everywhere.
+        $newFilename = 'profile_' . $user['id'] . '_' . time() . '.jpg';
         $uploadPath = $uploadDir . '/' . $newFilename;
         $dbPath = '/uploads/profiles/' . $newFilename;
 
-        if (move_uploaded_file($file['tmp_name'], $uploadPath)) {
+        $saved = false;
+
+        if (class_exists('Imagick')) {
+            try {
+                $image = new Imagick($file['tmp_name']);
+                $image->autoOrient();
+                $image->stripImage();
+                $image->setImageFormat('jpeg');
+                $image->setImageCompressionQuality(85);
+                $saved = $image->writeImage($uploadPath);
+                $image->clear();
+                $image->destroy();
+            } catch (Throwable $e) {
+                $saved = false;
+            }
+        }
+
+        if (!$saved) {
+            $saved = move_uploaded_file($file['tmp_name'], $uploadPath);
+        }
+
+        if ($saved) {
             $stmt = $pdo->prepare("UPDATE users SET profile_picture_path = ? WHERE id = ?");
             $stmt->execute([$dbPath, $user['id']]);
+
+            if ($user['profile_picture_path']) {
+                $oldFile = __DIR__ . $user['profile_picture_path'];
+                if (file_exists($oldFile)) {
+                    unlink($oldFile);
+                }
+            }
+
             redirect('/profile.php', 'Profile picture uploaded successfully', 'success');
         } else {
             redirect('/profile.php', 'Failed to upload picture', 'danger');
@@ -185,12 +218,12 @@ include __DIR__ . '/includes/header.php';
                     id="profile_picture"
                     name="profile_picture"
                     required
-                    accept="image/jpeg,image/png,image/gif,image/webp"
+                    accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif"
                 >
                 <div class="profile-picture-preview-wrap">
                     <img id="profile-picture-preview" class="profile-picture-preview" alt="Selected profile picture preview" hidden>
                 </div>
-                <small class="text-muted profile-picture-note">Max file size: 5MB. Recommended size: 400x400px</small>
+                <small class="text-muted profile-picture-note">Max file size: 5MB. iPhone photos (HEIC/HEIF) are supported and converted automatically.</small>
             </div>
             <button type="submit" class="btn btn-primary btn-block">Upload Picture</button>
         </form>
