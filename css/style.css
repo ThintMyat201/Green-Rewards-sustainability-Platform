@@ -2105,10 +2105,8 @@ svg {
         min-height: 36px;
         padding: 0.4rem 0.8rem;
     }
-}
 
-/* Responsive */
-@media (max-width: 768px) {
+    /* Merged Responsive rules */
     .tree-actions .btn {
         width: 100%;
     }

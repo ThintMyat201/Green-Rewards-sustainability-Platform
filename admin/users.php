@@ -11,8 +11,6 @@ $error = '';
 $success = '';
 $roleOptions = ['student', 'staff', 'moderator', 'admin'];
 
-migrateUsersDepartmentToVarchar();
-ensureDepartmentsTable();
 $departmentOptions = getDepartmentOptions();
 $departmentOptionsAll = getDepartmentOptions(false);
 

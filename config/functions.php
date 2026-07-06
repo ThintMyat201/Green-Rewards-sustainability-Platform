@@ -49,14 +49,23 @@ function isLoggedIn() {
     return isset($_SESSION['user_id']);
 }
 
-// Get current user data
-function getCurrentUser() {
+// Get current user data with static memoization
+function getCurrentUser($forceRefresh = false) {
     global $pdo;
     if (!isLoggedIn()) return null;
     
+    static $cachedUser = null;
+    static $cachedUserId = null;
+    
+    if (!$forceRefresh && $cachedUser !== null && $cachedUserId === $_SESSION['user_id']) {
+        return $cachedUser;
+    }
+    
     $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
     $stmt->execute([$_SESSION['user_id']]);
-    return $stmt->fetch();
+    $cachedUser = $stmt->fetch();
+    $cachedUserId = $_SESSION['user_id'];
+    return $cachedUser;
 }
 
 // Check if user has specific role
@@ -115,13 +124,21 @@ function formatDate($date) {
     return date('M d, Y', strtotime($date));
 }
 
-// Get setting value
-function getSetting($key, $default = '') {
+// Get setting value with static memoization
+function getSetting($key, $default = '', $forceRefresh = false) {
     global $pdo;
+    static $settingsCache = [];
+    
+    if (!$forceRefresh && isset($settingsCache[$key])) {
+        return $settingsCache[$key];
+    }
+    
     $stmt = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = ?");
     $stmt->execute([$key]);
     $result = $stmt->fetch();
-    return $result ? $result['setting_value'] : $default;
+    $val = $result ? $result['setting_value'] : $default;
+    $settingsCache[$key] = $val;
+    return $val;
 }
 
 // Update setting
@@ -131,121 +148,22 @@ function updateSetting($key, $value, $userId = null) {
         "UPDATE settings SET setting_value = ?, updated_by = ?, updated_at = NOW() 
          WHERE setting_key = ?"
     );
-    return $stmt->execute([$value, $userId, $key]);
+    $res = $stmt->execute([$value, $userId, $key]);
+    if ($res) {
+        getSetting($key, '', true); // invalidate cache
+    }
+    return $res;
 }
 
 function getDefaultDepartmentOptions() {
     return ['Computer Science', 'Engineering', 'Business'];
 }
 
-function migrateUsersDepartmentToVarchar() {
-    global $pdo;
-    static $done = false;
-
-    if ($done) {
-        return true;
-    }
-
-    try {
-        $stmt = $pdo->query("SELECT DATABASE() AS db_name");
-        $dbName = (string) ($stmt->fetch()['db_name'] ?? '');
-
-        if ($dbName === '') {
-            return false;
-        }
-
-        $stmt = $pdo->prepare(
-            "SELECT DATA_TYPE
-             FROM information_schema.COLUMNS
-             WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'users' AND COLUMN_NAME = 'department'
-             LIMIT 1"
-        );
-        $stmt->execute([$dbName]);
-        $column = $stmt->fetch();
-
-        if (!$column) {
-            return false;
-        }
-
-        if (strtolower((string) ($column['DATA_TYPE'] ?? '')) === 'enum') {
-            $pdo->exec("ALTER TABLE users MODIFY department VARCHAR(100) NULL");
-        }
-
-        $done = true;
-        return true;
-    } catch (Throwable $e) {
-        return false;
-    }
-}
-
-function ensureDepartmentsTable() {
-    global $pdo;
-    static $ready = null;
-
-    if ($ready === true) {
-        return true;
-    }
-
-    try {
-        // Create table if it doesn't exist
-        $pdo->exec(
-            "CREATE TABLE IF NOT EXISTS departments (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                name VARCHAR(100) NOT NULL UNIQUE,
-                code VARCHAR(20),
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                INDEX idx_name (name)
-            ) ENGINE=InnoDB"
-        );
-
-        // Check if code column exists; if not, add it
-        $stmt = $pdo->prepare(
-            "SELECT COLUMN_NAME FROM information_schema.COLUMNS 
-             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'departments' AND COLUMN_NAME = 'code'"
-        );
-        $stmt->execute();
-        
-        if (!$stmt->fetch()) {
-            // Code column doesn't exist, add it
-            $pdo->exec("ALTER TABLE departments ADD COLUMN code VARCHAR(20) UNIQUE AFTER name");
-        }
-
-        // Make code column NOT NULL with unique constraint if it's not already
-        $stmt = $pdo->prepare(
-            "SELECT IS_NULLABLE FROM information_schema.COLUMNS 
-             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'departments' AND COLUMN_NAME = 'code'"
-        );
-        $stmt->execute();
-        $column = $stmt->fetch();
-        
-        if ($column && $column['IS_NULLABLE'] === 'YES') {
-            $pdo->exec("UPDATE departments SET code = CONCAT('DEPT_', id) WHERE code IS NULL");
-            $pdo->exec("ALTER TABLE departments MODIFY code VARCHAR(20) NOT NULL UNIQUE");
-        }
-
-        // Seed default departments if they don't exist
-        $insert = $pdo->prepare("INSERT IGNORE INTO departments (name, code) VALUES (?, ?)");
-        $defaultDepts = [
-            'Computer Science' => 'CS',
-            'Engineering' => 'ENG',
-            'Business' => 'BUS'
-        ];
-        foreach ($defaultDepts as $deptName => $deptCode) {
-            $insert->execute([$deptName, $deptCode]);
-        }
-
-        $ready = true;
-        return true;
-    } catch (Throwable $e) {
-        return false;
-    }
-}
-
 function getDepartmentOptions($activeOnly = true) {
     global $pdo;
-
-    if (!ensureDepartmentsTable()) {
-        return getDefaultDepartmentOptions();
+    static $cache = null;
+    if ($cache !== null) {
+        return $cache;
     }
 
     try {
@@ -260,6 +178,7 @@ function getDepartmentOptions($activeOnly = true) {
             $options[] = $row['name'];
         }
 
+        $cache = $options;
         return $options;
     } catch (Throwable $e) {
         return getDefaultDepartmentOptions();
@@ -274,7 +193,7 @@ function isValidDepartment($department, $activeOnly = true) {
     return in_array($department, getDepartmentOptions($activeOnly), true);
 }
 
-// Add points to user
+// Add points to user with database transaction
 function addPoints($userId, $points, $source, $description = '') {
     global $pdo;
 
@@ -286,21 +205,38 @@ function addPoints($userId, $points, $source, $description = '') {
         return false;
     }
     
-    // Add to points_log
-    $stmt = $pdo->prepare(
-        "INSERT INTO points_log (user_id, source, points_earned, description) 
-         VALUES (?, ?, ?, ?)"
-    );
-    $stmt->execute([$userId, $source, $points, $description]);
-    
-    // Update user's total points
-    $stmt = $pdo->prepare(
-        "UPDATE users SET points_total = points_total + ? WHERE id = ?"
-    );
-    return $stmt->execute([$points, $userId]);
+    try {
+        $pdo->beginTransaction();
+        
+        // Add to points_log
+        $stmt = $pdo->prepare(
+            "INSERT INTO points_log (user_id, source, points_earned, description) 
+             VALUES (?, ?, ?, ?)"
+        );
+        $stmt->execute([$userId, $source, $points, $description]);
+        
+        // Update user's total points
+        $stmt = $pdo->prepare(
+            "UPDATE users SET points_total = points_total + ? WHERE id = ?"
+        );
+        $res = $stmt->execute([$points, $userId]);
+        
+        $pdo->commit();
+        
+        if ($res && isset($_SESSION['user_id']) && (int)$_SESSION['user_id'] === (int)$userId) {
+            getCurrentUser(true); // invalidate/refresh cached user
+        }
+        
+        return $res;
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        return false;
+    }
 }
 
-// Check and unlock achievements
+// Check and unlock achievements without N+1 queries
 function checkAchievements($userId) {
     global $pdo;
     
@@ -308,14 +244,38 @@ function checkAchievements($userId) {
     $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
     $stmt->execute([$userId]);
     $user = $stmt->fetch();
+    if (!$user) {
+        return;
+    }
     
-    // Get unlockable achievements
-    $achievements = $pdo->query(
+    // Get unlockable achievements using prepared statement
+    $stmt = $pdo->prepare(
         "SELECT a.* FROM achievements a 
          WHERE a.id NOT IN (
-             SELECT achievement_id FROM user_achievements WHERE user_id = $userId
+             SELECT achievement_id FROM user_achievements WHERE user_id = ?
          )"
-    )->fetchAll();
+    );
+    $stmt->execute([$userId]);
+    $achievements = $stmt->fetchAll();
+    
+    if (!$achievements) {
+        return;
+    }
+    
+    // Pre-calculate user activity summaries once ($O(1) database trips)
+    $stmtQuiz = $pdo->prepare("SELECT COUNT(*) as cnt FROM quiz_attempts WHERE user_id = ? AND is_correct = 1");
+    $stmtQuiz->execute([$userId]);
+    $quizCount = (int) $stmtQuiz->fetch()['cnt'];
+    
+    $stmtChallenge = $pdo->prepare("SELECT COUNT(*) as cnt FROM challenge_submissions WHERE user_id = ? AND status = 'approved'");
+    $stmtChallenge->execute([$userId]);
+    $challengeCount = (int) $stmtChallenge->fetch()['cnt'];
+    
+    $stmtElec = $pdo->prepare("SELECT COUNT(*) as cnt FROM electricity_logs WHERE user_id = ? AND units_used < benchmark");
+    $stmtElec->execute([$userId]);
+    $elecCount = (int) $stmtElec->fetch()['cnt'];
+    
+    $insertUnlock = $pdo->prepare("INSERT IGNORE INTO user_achievements (user_id, achievement_id) VALUES (?, ?)");
     
     foreach ($achievements as $achievement) {
         $unlock = false;
@@ -325,33 +285,21 @@ function checkAchievements($userId) {
                 $unlock = $user['points_total'] >= $achievement['condition_value'];
                 break;
             case 'quiz_streak':
-                $count = $pdo->query(
-                    "SELECT COUNT(*) as cnt FROM quiz_attempts 
-                     WHERE user_id = $userId AND is_correct = 1"
-                )->fetch()['cnt'];
-                $unlock = $count >= $achievement['condition_value'];
+                $unlock = $quizCount >= $achievement['condition_value'];
                 break;
             case 'challenges_completed':
-                $count = $pdo->query(
-                    "SELECT COUNT(*) as cnt FROM challenge_submissions 
-                     WHERE user_id = $userId AND status = 'approved'"
-                )->fetch()['cnt'];
-                $unlock = $count >= $achievement['condition_value'];
+                $unlock = $challengeCount >= $achievement['condition_value'];
                 break;
             case 'electricity_saves':
-                $count = $pdo->query(
-                    "SELECT COUNT(*) as cnt FROM electricity_logs 
-                     WHERE user_id = $userId AND units_used < benchmark"
-                )->fetch()['cnt'];
-                $unlock = $count >= $achievement['condition_value'];
+                $unlock = $elecCount >= $achievement['condition_value'];
+                break;
+            case 'first_action':
+                $unlock = true;
                 break;
         }
         
         if ($unlock) {
-            $stmt = $pdo->prepare(
-                "INSERT INTO user_achievements (user_id, achievement_id) VALUES (?, ?)"
-            );
-            $stmt->execute([$userId, $achievement['id']]);
+            $insertUnlock->execute([$userId, $achievement['id']]);
         }
     }
 }

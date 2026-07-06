@@ -10,9 +10,6 @@ if (!isLoggedIn() || !hasRole('admin')) {
 $error = '';
 $success = '';
 
-// Initialize table on first use, but don't block page if it fails
-@ensureDepartmentsTable();
-
 // Process requests only on POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['create_department'])) {

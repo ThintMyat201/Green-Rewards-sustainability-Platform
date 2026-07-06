@@ -60,67 +60,41 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    // Image preview for file uploads
+    // Image preview for file uploads (Unified DRY handler)
     const fileInputs = document.querySelectorAll('input[type="file"]');
     fileInputs.forEach(input => {
         input.addEventListener('change', function(e) {
             const file = e.target.files[0];
-            const profilePreview = document.getElementById('profile-picture-preview');
-            const rewardPreview = document.getElementById('reward-image-preview');
-            const previewTargetId = input.dataset.previewTarget;
-            const previewTarget = previewTargetId ? document.getElementById(previewTargetId) : null;
-
-            if (previewTarget) {
+            
+            // Resolve target element by data-preview-target or common ID conventions
+            let target = null;
+            if (input.dataset.previewTarget) {
+                target = document.getElementById(input.dataset.previewTarget);
+            } else if (input.id === 'profile_picture') {
+                target = document.getElementById('profile-picture-preview');
+            } else if (input.id === 'reward_image') {
+                target = document.getElementById('reward-image-preview');
+            }
+            
+            if (target) {
                 if (!file) {
-                    previewTarget.removeAttribute('src');
-                    previewTarget.hidden = true;
+                    target.removeAttribute('src');
+                    target.hidden = true;
                     return;
                 }
-
                 const reader = new FileReader();
-                reader.onload = function(loadEvent) {
-                    previewTarget.src = loadEvent.target.result;
-                    previewTarget.hidden = false;
+                reader.onload = (ev) => {
+                    target.src = ev.target.result;
+                    target.hidden = false;
                 };
                 reader.readAsDataURL(file);
                 return;
             }
 
-            if (input.id === 'profile_picture' && profilePreview) {
-                if (!file) {
-                    profilePreview.removeAttribute('src');
-                    profilePreview.hidden = true;
-                    return;
-                }
-
-                const reader = new FileReader();
-                reader.onload = function(loadEvent) {
-                    profilePreview.src = loadEvent.target.result;
-                    profilePreview.hidden = false;
-                };
-                reader.readAsDataURL(file);
-                return;
-            }
-
-            if (input.id === 'reward_image' && rewardPreview) {
-                if (!file) {
-                    rewardPreview.removeAttribute('src');
-                    rewardPreview.hidden = true;
-                    return;
-                }
-
-                const reader = new FileReader();
-                reader.onload = function(loadEvent) {
-                    rewardPreview.src = loadEvent.target.result;
-                    rewardPreview.hidden = false;
-                };
-                reader.readAsDataURL(file);
-                return;
-            }
-
+            // Fallback: create dynamic inline preview if no explicit target exists
             if (file) {
                 const reader = new FileReader();
-                reader.onload = function(e) {
+                reader.onload = (ev) => {
                     let preview = document.getElementById('image-preview');
                     if (!preview) {
                         preview = document.createElement('img');
@@ -130,7 +104,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         preview.style.borderRadius = '8px';
                         input.parentElement.appendChild(preview);
                     }
-                    preview.src = e.target.result;
+                    preview.src = ev.target.result;
                 };
                 reader.readAsDataURL(file);
             }

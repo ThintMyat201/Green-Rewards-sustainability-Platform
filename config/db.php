@@ -1,8 +1,18 @@
 <?php
-// Load .env file
+// Load .env file with static memoization and graceful fallback
 function loadEnv($filePath) {
+    static $loaded = false;
+    if ($loaded) {
+        return;
+    }
+    $loaded = true;
+
     if (!file_exists($filePath)) {
-        die("Error: .env file not found at " . $filePath);
+        // If system environment variables are already injected (e.g. Docker/cloud), proceed silently
+        if (getenv('DB_HOST') !== false) {
+            return;
+        }
+        die("Error: Configuration file not found and environment variables are not set.");
     }
     
     $lines = file($filePath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
@@ -24,8 +34,9 @@ function loadEnv($filePath) {
                 $value = substr($value, 1, -1);
             }
             
-            if (!empty($key)) {
+            if (!empty($key) && getenv($key) === false) {
                 putenv("$key=$value");
+                $_ENV[$key] = $value;
             }
         }
     }
