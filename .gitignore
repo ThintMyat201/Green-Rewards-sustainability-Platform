@@ -86,3 +86,15 @@ android-sdk/-e
 
 .emergent/
 .gitconfig
+
+# Images and Uploads
+/uploads/*
+!/uploads/.gitkeep
+!/uploads/profiles/.gitkeep
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.webp
+*.svg
+*.ico
