@@ -216,7 +216,7 @@ A student's environmental impact is visualized through an adaptive virtual tree 
 
 ## 🎓 Academic Learning Outcomes Demonstrated
 
-This project successfully fulfills advanced university computer science and software engineering learning objectives:
+This project successfully fulfills advanced university infomation technology and software engineering learning objectives:
 1. **Full-Stack Web Development**: Seamless integration of server-side PHP logic with responsive client-side UI/UX.
 2. **Relational Database Design**: Mastering 3rd Normal Form (3NF), foreign key referential integrity, indexing, and complex SQL JOINs.
 3. **Software Architecture & Clean Code**: Adherence to DRY (Don't Repeat Yourself) principles, modular helper abstractions, and separation of concerns without relying on commercial frameworks.
